@@ -1,0 +1,233 @@
+<meta name='viewport' content='width=device-width, initial-scale=1'/><!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Simple Memory Boxes</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="dark-mode">
+  <div class="game-container">
+    <h1>🧠 Match the Boxes</h1>
+    <div class="info">
+      <span id="level-display">Level: 1</span>
+      <span id="timer">⏱ Time: 90s</span>
+    </div>
+    <div id="message"></div>
+    <div id="game-board" class="grid-board"></div>
+    <div class="buttons">
+      <button id="restart">🔁 Restart</button>
+      <button id="theme-toggle">🌓 Theme</button>
+    </div>
+  </div>
+
+  <audio id="correct-sound" src="https://cdn.pixabay.com/audio/2022/03/15/audio_ef4a6b8a21.mp3"></audio>
+  <audio id="wrong-sound" src="https://cdn.pixabay.com/audio/2022/03/15/audio_7fd3d84c27.mp3"></audio>
+  <script src="script.js"></script>
+</body>
+</html><style>body {
+  margin: 0;
+  font-family: 'Segoe UI', sans-serif;
+  transition: background 0.3s, color 0.3s;
+}
+
+.dark-mode {
+  background: #111;
+  color: #fff;
+}
+
+.light-mode {
+  background: #f8f9fa;
+  color: #000;
+}
+
+.game-container {
+  max-width: 600px;
+  margin: auto;
+  text-align: center;
+  padding: 20px;
+}
+
+.info {
+  display: flex;
+  justify-content: space-between;
+  margin: 10px 0;
+  font-size: 1.2rem;
+}
+
+.grid-board {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.card {
+  background: #333;
+  color: #fff;
+  border-radius: 8px;
+  font-size: 2rem;
+  padding: 20px;
+  cursor: pointer;
+  transition: transform 0.3s ease, background 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+}
+
+.card:hover {
+  background: #555;
+}
+
+.card.flipped {
+  background: #0d6efd;
+}
+
+.card.correct {
+  background: #198754;
+  animation: pop 0.3s ease;
+}
+
+.card.wrong {
+  background: #dc3545;
+  animation: shake 0.5s ease;
+}
+
+@keyframes pop {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  50% { transform: translateX(5px); }
+  75% { transform: translateX(-5px); }
+}
+
+.buttons {
+  margin-top: 20px;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+button {
+  padding: 8px 14px;
+  font-size: 1rem;
+  cursor: pointer;
+  border: none;
+  border-radius: 6px;
+}</style><script>const emojis = ['🍕','⚽','🎧','🚀','🎲','🧠','🍩','🎮','🦄','⚡','📱','💡','🎉'];
+const board = document.getElementById('game-board');
+const restartBtn = document.getElementById('restart');
+const themeBtn = document.getElementById('theme-toggle');
+const timerEl = document.getElementById('timer');
+const levelEl = document.getElementById('level-display');
+const messageEl = document.getElementById('message');
+const correctSound = document.getElementById('correct-sound');
+const wrongSound = document.getElementById('wrong-sound');
+
+let level = 1;
+let timeLeft = 90;
+let timer;
+let lockBoard = false;
+let firstCard = null;
+let matched = 0;
+let cards = [];
+
+function getTime(level) {
+  return Math.max(10, 90 - (level - 1) * 6);
+}
+
+function shuffle(array) {
+  return array.sort(() => Math.random() - 0.5);
+}
+
+function createBoard() {
+  board.innerHTML = '';
+  matched = 0;
+  firstCard = null;
+  lockBoard = false;
+  clearInterval(timer);
+
+  let pairs = 4 + level;
+  let selected = shuffle([...emojis]).slice(0, pairs);
+  cards = shuffle([...selected, ...selected]);
+
+  cards.forEach(symbol => {
+    const div = document.createElement('div');
+    div.classList.add('card');
+    div.textContent = '?';
+    div.dataset.value = symbol;
+    div.addEventListener('click', () => flipCard(div));
+    board.appendChild(div);
+  });
+
+  timeLeft = getTime(level);
+  timerEl.textContent = `⏱ Time: ${timeLeft}s`;
+  levelEl.textContent = `Level: ${level}`;
+  timer = setInterval(updateTimer, 1000);
+  messageEl.innerHTML = '';
+}
+
+function flipCard(card) {
+  if (lockBoard || card.classList.contains('flipped')) return;
+  card.textContent = card.dataset.value;
+  card.classList.add('flipped');
+
+  if (!firstCard) {
+    firstCard = card;
+  } else {
+    lockBoard = true;
+    if (firstCard.dataset.value === card.dataset.value) {
+      correctSound.play();
+      firstCard.classList.add('correct');
+      card.classList.add('correct');
+      matched++;
+      if (matched === cards.length / 2) {
+        setTimeout(() => {
+          level++;
+          createBoard();
+        }, 1000);
+      }
+      firstCard = null;
+      lockBoard = false;
+    } else {
+      wrongSound.play();
+      card.classList.add('wrong');
+      firstCard.classList.add('wrong');
+      setTimeout(() => {
+        card.textContent = '?';
+        firstCard.textContent = '?';
+        card.classList.remove('flipped', 'wrong');
+        firstCard.classList.remove('flipped', 'wrong');
+        firstCard = null;
+        lockBoard = false;
+      }, 800);
+    }
+  }
+}
+
+function updateTimer() {
+  timeLeft--;
+  timerEl.textContent = `⏱ Time: ${timeLeft}s`;
+  if (timeLeft <= 0) {
+    clearInterval(timer);
+    lockBoard = true;
+    messageEl.innerHTML = `<div style="color: red;">⏳ Time’s up! Game over at Level ${level}</div>`;
+  }
+}
+
+themeBtn.addEventListener('click', () => {
+  document.body.classList.toggle('dark-mode');
+  document.body.classList.toggle('light-mode');
+});
+
+restartBtn.addEventListener('click', () => {
+  level = 1;
+  createBoard();
+});
+
+createBoard();</script>
